@@ -11,20 +11,13 @@ import base64
 import numpy as np
 import torch
 from model.model import LSTMModel
-from vis.processor import Processor
+# from vis.processor import Processor
 from default_params import *
 from flask import jsonify
-from firebase_admin import db
 from helpers import pop_and_add, last_ip, dist, move_figure, get_hist
 # Set path for the model
-import firebase_admin
-from firebase_admin import credentials
-
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
 logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
-
 @app.route('/get_image',methods=['GET'])
 def get_image():
     while True:
@@ -57,11 +50,11 @@ def predict():
     image_array = np.array(image)
     app.logger.info(f"json_payload: {instance}")
     
-    prediction = opslib.predict(image_array)
-    app.logger.info(f"predictions: {prediction}")
-    predictions_ref = db.reference('predictions')
-    predictions_ref.push({'frame': instance ,'isFall': prediction})
-    return "Upload to firebase successfully"
+    # prediction = opslib.predict(image_array)
+    # app.logger.info(f"predictions: {prediction}")
+    # predictions_ref = db.reference('predictions')
+    # predictions_ref.push({'frame': instance ,'isFall': prediction})
+    return {'result':'Upload to firebase successfully'}
 @app.route('/')
 def index():
     url = url_for('index', _external=True)
@@ -70,10 +63,13 @@ def index():
 VIDEO_FILE_PATH = "downloaded_video.mp4"
 @app.route('/video_feed')
 def video_feed():
-    return Response(opslib.generate_frames(VIDEO_FILE_PATH), mimetype='multipart/x-mixed-replace; boundary=frame')
+    #return Response(opslib.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(opslib.generate_frames(VIDEO_FILE_PATH,30), mimetype='multipart/x-mixed-replace; boundary=frame')
 @app.route('/video')
 def get_video():
-    return send_file(VIDEO_FILE_PATH, mimetype='video/mp4')
+    opslib.get_webcam()
+    return "hello"
+    # return send_file(VIDEO_FILE_PATH, mimetype='video/mp4')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080, debug=True)

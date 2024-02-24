@@ -12,6 +12,7 @@ from default_params import *
 from flask import jsonify
 from helpers import pop_and_add, last_ip, dist, move_figure, get_hist
 from vis.visual import write_on_image, visualise, activity_dict, visualise_tracking
+import time
 logging.basicConfig(level=logging.INFO)
 cwd = os.path.abspath(os.path.dirname(__file__))
 
@@ -244,7 +245,8 @@ def predict(instance):
     if prediction <=5:
         return True
     return False  
-def generate_frames(path):
+
+def generate_frames(path, frame_rate):
     video_capture = cv2.VideoCapture(path)  # Path to your video file
     while True:
         success, frame = video_capture.read()
@@ -254,3 +256,29 @@ def generate_frames(path):
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        
+        # Introduce a delay to control the frame rate
+        time.sleep(1 / frame_rate)
+def get_webcam():
+    # define a video capture object 
+    vid = cv2.VideoCapture(0) 
+    
+    while(True): 
+        
+        # Capture the video frame 
+        # by frame 
+        ret, frame = vid.read() 
+    
+        # Display the resulting frame 
+        cv2.imshow('frame', frame) 
+        
+        # the 'q' button is set as the 
+        # quitting button you may use any 
+        # desired button of your choice 
+        if cv2.waitKey(1) & 0xFF == ord('q'): 
+            break
+    
+    # After the loop release the cap object 
+    vid.release() 
+    # Destroy all the windows 
+    cv2.destroyAllWindows() 
