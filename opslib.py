@@ -6,7 +6,7 @@ import logging
 import json
 import torch 
 from model.model import LSTMModel
-from vis.processor import Processor
+# from vis.processor import Processor
 import cv2
 from default_params import *
 from flask import jsonify
