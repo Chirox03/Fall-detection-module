@@ -9,15 +9,15 @@ import numpy as np
 
 
 class Processor(object):
-    def __init__(self, width_height, args):
+    def __init__(self, width_height):
         self.width_height = width_height
 
         # Load model
         self.model_cpu, _ = openpifpaf.network.Factory().factory()
-        self.model = self.model_cpu.to(args.device)
+        self.model = self.model_cpu.to('cpu')
         self.processor = openpifpaf.decoder.factory(self.model_cpu.head_metas)
         # print(self.processor.device)
-        self.device = args.device
+        self.device = 'cpu'
 
     def get_bb(self, kp_set, score=None):
         bb_list = []
