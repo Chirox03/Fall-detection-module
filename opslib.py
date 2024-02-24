@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import logging
 import json
+import base64
 import torch 
 from model.model import LSTMModel
 # from vis.processor import Processor
@@ -34,100 +35,6 @@ def resize(img, height, width, resolution):
     width_height = (int(width * resolution // 16) * 16,
                     int(height * resolution // 16) * 16)
     return width, height, width_height
-def get_all_features(ip_set, lstm_set, model):
-    valid_idxs = []
-    invalid_idxs = []
-    predictions = [15]*len(ip_set)  # 15 is the tag for None
-
-    for i, ips in enumerate(ip_set):
-        # ip set for a particular person
-        last1 = None
-        last2 = None
-        for j in range(-2, -1*DEFAULT_CONSEC_FRAMES - 1, -1):
-            if ips[j] is not None:
-                if last1 is None:
-                    last1 = j
-                elif last2 is None:
-                    last2 = j
-        if ips[-1] is None:
-            invalid_idxs.append(i)
-            # continue
-        else:
-            ips[-1]["features"] = {}
-            # get re, gf, angle, bounding box ratio, ratio derivative
-            ips[-1]["features"]["height_bbox"] = get_height_bbox(ips[-1])
-            ips[-1]["features"]["ratio_bbox"] = FEATURE_SCALAR["ratio_bbox"]*get_ratio_bbox(ips[-1])
-
-            body_vector = ips[-1]["keypoints"]["N"] - ips[-1]["keypoints"]["B"]
-            ips[-1]["features"]["angle_vertical"] = FEATURE_SCALAR["angle_vertical"]*get_angle_vertical(body_vector)
-            # print(ips[-1]["features"]["angle_vertical"])
-            ips[-1]["features"]["log_angle"] = FEATURE_SCALAR["log_angle"]*np.log(1 + np.abs(ips[-1]["features"]["angle_vertical"]))
-
-            if last1 is None:
-                invalid_idxs.append(i)
-                # continue
-            else:
-                ips[-1]["features"]["re"] = FEATURE_SCALAR["re"]*get_rot_energy(ips[last1], ips[-1])
-                ips[-1]["features"]["ratio_derivative"] = FEATURE_SCALAR["ratio_derivative"]*get_ratio_derivative(ips[last1], ips[-1])
-                if last2 is None:
-                    invalid_idxs.append(i)
-                    # continue
-                else:
-                    ips[-1]["features"]["gf"] = get_gf(ips[last2], ips[last1], ips[-1])
-                    valid_idxs.append(i)
-
-        xdata = []
-        if ips[-1] is None:
-            if last1 is None:
-                xdata = [0]*len(FEATURE_LIST)
-            else:
-                for feat in FEATURE_LIST[:FRAME_FEATURES]:
-                    xdata.append(ips[last1]["features"][feat])
-                xdata += [0]*(len(FEATURE_LIST)-FRAME_FEATURES)
-        else:
-            for feat in FEATURE_LIST:
-                if feat in ips[-1]["features"]:
-                    xdata.append(ips[-1]["features"][feat])
-                else:
-                    xdata.append(0)
-
-        xdata = torch.Tensor(xdata).view(-1, 1, 5)
-        # what is ips[-2] is none
-        outputs, lstm_set[i][0] = model(xdata, lstm_set[i][0])
-        if i == 0:
-            prediction = torch.max(outputs.data, 1)[1][0].item()
-            confidence = torch.max(outputs.data, 1)[0][0].item()
-            fpd = True
-            # fpd = False
-            if fpd:
-                if prediction in [1, 2, 3, 5]:
-                    lstm_set[i][3] -= 1
-                    lstm_set[i][3] = max(lstm_set[i][3], 0)
-
-                    if lstm_set[i][2] < EMA_FRAMES:
-                        if ips[-1] is not None:
-                            lstm_set[i][2] += 1
-                            lstm_set[i][1] = (lstm_set[i][1]*(lstm_set[i][2]-1) + get_height_bbox(ips[-1]))/lstm_set[i][2]
-                    else:
-                        if ips[-1] is not None:
-                            lstm_set[i][1] = (1-EMA_BETA)*get_height_bbox(ips[-1]) + EMA_BETA*lstm_set[i][1]
-
-                elif prediction == 0:
-                    if (ips[-1] is not None and lstm_set[i][1] != 0 and \
-                            abs(ips[-1]["features"]["angle_vertical"]) < math.pi/4) or confidence < 0.4:
-                            # (get_height_bbox(ips[-1]) > 2*lstm_set[i][1]/3 or abs(ips[-1]["features"]["angle_vertical"]) < math.pi/4):
-                        prediction = 7
-                    else:
-                        lstm_set[i][3] += 1
-                        if lstm_set[i][3] < DEFAULT_CONSEC_FRAMES//4:
-                            prediction = 7
-                else:
-                    lstm_set[i][3] -= 1
-                    lstm_set[i][3] = max(lstm_set[i][3], 0)
-            predictions[i] = prediction
-
-    return valid_idxs, predictions[0] if len(predictions) > 0 else 15
-
 def resize(img, height, width, resolution):
     # Resize the video
     width_height = (int(width * resolution // 16) * 16,
@@ -192,6 +99,7 @@ def get_all_features(ip_set, lstm_set, model):
 
         xdata = torch.Tensor(xdata).view(-1, 1, 5)
         # what is ips[-2] is none
+        print(xdata)
         outputs, lstm_set[i][0] = model(xdata, lstm_set[i][0])
         if i == 0:
             prediction = torch.max(outputs.data, 1)[1][0].item()
@@ -254,8 +162,13 @@ def generate_frames(path, frame_rate):
             break
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
+        
+        # Encode frame bytes as base64
+        frame_base64 = base64.b64encode(frame_bytes)
+        
+        # Yield base64-encoded frame
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_base64 + b'\r\n')
         
         # Introduce a delay to control the frame rate
         time.sleep(1 / frame_rate)
