@@ -168,7 +168,7 @@ def generate_frames(path, frame_rate):
         
         # Yield base64-encoded frame
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_base64 + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         
         # Introduce a delay to control the frame rate
         time.sleep(1 / frame_rate)
