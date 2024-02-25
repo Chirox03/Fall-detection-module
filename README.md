@@ -1,5 +1,10 @@
 ﻿# Fall-detection-module
-To run fall detection on a video 
+Fall detection module for ElderCare and Server.
+## Install package
 ```
-python3 fall_detector.py --video='path_to_video'
+pip install -r requirements.txt
+```
+## To run the server
+```
+python app.py
 ```
