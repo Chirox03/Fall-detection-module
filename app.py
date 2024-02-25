@@ -64,7 +64,7 @@ VIDEO_FILE_PATH = "downloaded_video.mp4"
 @app.route('/video_feed')
 def video_feed():
     #return Response(opslib.generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-    return Response(opslib.generate_frames(VIDEO_FILE_PATH,30), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(opslib.generate_frames(VIDEO_FILE_PATH,40), mimetype='multipart/x-mixed-replace; boundary=frame')
 @app.route('/video')
 def get_video():
     opslib.get_webcam()
